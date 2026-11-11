@@ -791,25 +791,6 @@ trait TraitTagTotal
             );
             $ibstot->appendChild($gMono);
         }
-        //NT 2026.005 v1.00
-        if (!empty($this->aGTribSN) || isset($std->gTribSN_vIBSSN) || isset($std->gTribSN_vCBSSN)) {
-            $gTribSN = $this->dom->createElement('gTribSN');
-            $this->dom->addChild(
-                $gTribSN,
-                "vIBSSN",
-                $this->conditionalNumberFormatting($gTribSN_vIBSSN),
-                true,
-                "$identificador Valor total do IBS do Simples Nacional (vIBSSN)"
-            );
-            $this->dom->addChild(
-                $gTribSN,
-                "vCBSSN",
-                $this->conditionalNumberFormatting($gTribSN_vCBSSN),
-                true,
-                "$identificador Valor total da CBS do Simples Nacional (vCBSSN)"
-            );
-            $ibstot->appendChild($gTribSN);
-        }
         //NT 2025.002_v1.30 - PL_010_V1.30
         if (!empty($gEstornoCred_vIBSEstCred) || !empty($gEstornoCred_vCBSEstCred)) {
             $gEst = $this->dom->createElement('gEstornoCred');
@@ -828,6 +809,25 @@ trait TraitTagTotal
                 "$identificador Valor total do CBS estornado (vCBSEstCred)"
             );
             $ibstot->appendChild($gEst);
+        }
+        //NT 2026.005 v1.00 - W59h: gTribSN vem DEPOIS de gEstornoCred (W59e-W59g)
+        if (!empty($this->aGTribSN) || isset($std->gTribSN_vIBSSN) || isset($std->gTribSN_vCBSSN)) {
+            $gTribSN = $this->dom->createElement('gTribSN');
+            $this->dom->addChild(
+                $gTribSN,
+                "vIBSSN",
+                $this->conditionalNumberFormatting($gTribSN_vIBSSN),
+                true,
+                "$identificador Valor total do IBS do Simples Nacional (vIBSSN)"
+            );
+            $this->dom->addChild(
+                $gTribSN,
+                "vCBSSN",
+                $this->conditionalNumberFormatting($gTribSN_vCBSSN),
+                true,
+                "$identificador Valor total da CBS do Simples Nacional (vCBSSN)"
+            );
+            $ibstot->appendChild($gTribSN);
         }
         $this->IBSCBSTot = $ibstot;
         return $ibstot;

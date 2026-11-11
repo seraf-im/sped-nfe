@@ -130,6 +130,102 @@ class SimplesNacionalIBSCBSTest extends NFeTestCase
         $this->assertSame(2, $dom->getElementsByTagName('gTribSN')->length);
     }
 
+    /**
+     * NT 2026.005 (W59h) x NT 2025.002 v1.52 (W59e-W59g): no total, gTribSN vem DEPOIS de gEstornoCred.
+     */
+    public function test_IBSCBSTot_gTribSN_vem_depois_de_gEstornoCred(): void
+    {
+        $make = new Make('PL_010_V1');
+        $this->buildNFe55SimplesNacional($make, true);
+        $this->addEstorno($make);
+
+        $dom = $this->render($make);
+        $total = $dom->getElementsByTagName('IBSCBSTot')->item(0);
+        $nomes = $this->childNames($total);
+        $this->assertSame(['gEstornoCred', 'gTribSN'], array_slice($nomes, -2));
+
+        // no item a ordem e a inversa (UB115a entre UB115 e UB116): gTribSN antes de gEstornoCred
+        $item = $dom->getElementsByTagName('IBSCBS')->item(0);
+        $this->assertSame(['CST', 'cClassTrib', 'gTribSN', 'gEstornoCred'], $this->childNames($item));
+    }
+
+    /**
+     * @dataProvider schemasProvider
+     */
+    public function test_nfe_com_gEstornoCred_e_gTribSN_no_total_valida_no_xsd(string $schemes): void
+    {
+        $make = new Make($schemes);
+        $this->buildNFe55SimplesNacional($make, true);
+        $this->addEstorno($make);
+        $xml = $make->getXML();
+        $this->assertSame([], $make->getErrors());
+
+        $this->assertTrue($this->validaXsd($xml, $schemes));
+    }
+
+    /**
+     * @dataProvider schemasProvider
+     */
+    public function test_xsd_rejeita_gTribSN_antes_de_gEstornoCred_no_total(string $schemes): void
+    {
+        $make = new Make($schemes);
+        $this->buildNFe55SimplesNacional($make, true);
+        $this->addEstorno($make);
+
+        $dom = $this->render($make);
+        $total = $dom->getElementsByTagName('IBSCBSTot')->item(0);
+        $estorno = $total->getElementsByTagName('gEstornoCred')->item(0);
+        $gTribSN = $total->getElementsByTagName('gTribSN')->item(0);
+        $total->insertBefore($gTribSN, $estorno); // ordem errada (a da PR original)
+
+        $this->expectException(\Throwable::class);
+        $this->validaXsd($dom->saveXML(), $schemes);
+    }
+
+    /**
+     * @dataProvider schemasProvider
+     */
+    public function test_nfe_simples_nacional_sem_estorno_valida_no_xsd(string $schemes): void
+    {
+        $make = new Make($schemes);
+        $this->buildNFe55SimplesNacional($make, true);
+        $this->assertTrue($this->validaXsd($make->getXML(), $schemes));
+    }
+
+    public static function schemasProvider(): array
+    {
+        return [
+            'PL_010_V1' => ['PL_010_V1'],
+            'PL_010_V1.30' => ['PL_010_V1.30'],
+        ];
+    }
+
+    private function addEstorno(Make $make): void
+    {
+        $std = new stdClass();
+        $std->item = 1;
+        $std->vIBSEstCred = 0.01;
+        $std->vCBSEstCred = 0.05;
+        $make->taggEstornoCred($std);
+    }
+
+    private function validaXsd(string $xml, string $schemes): bool
+    {
+        preg_match('/<infNFe[^>]*\bId="([^"]+)"/', $xml, $m);
+        $b64 = base64_encode(str_repeat('P', 20));
+        $sig = '<Signature xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo>'
+            . '<CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>'
+            . '<SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>'
+            . '<Reference URI="#' . $m[1] . '"><Transforms>'
+            . '<Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>'
+            . '<Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/></Transforms>'
+            . '<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/><DigestValue>' . $b64
+            . '</DigestValue></Reference></SignedInfo><SignatureValue>' . $b64 . '</SignatureValue>'
+            . '<KeyInfo><X509Data><X509Certificate>' . $b64 . '</X509Certificate></X509Data></KeyInfo></Signature>';
+        $xml = str_replace('</NFe>', $sig . '</NFe>', $xml);
+        return \NFePHP\Common\Validator::isValid($xml, dirname(__DIR__) . "/schemes/$schemes/nfe_v4.00.xsd");
+    }
+
     private function render(Make $make): \DOMDocument
     {
         $dom = new \DOMDocument();
