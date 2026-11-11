@@ -1880,7 +1880,7 @@ trait TraitTagDetICMS
                 $this->dom->addChild(
                     $icmsSN,
                     'pCredSN',
-                    $this->conditionalNumberFormatting($std->pCredSN, 4),
+                    $this->conditionalNumberFormatting($std->pCredSN, 2),
                     true,
                     "$identificador Alíquota aplicável de cálculo do crédito (Simples Nacional)."
                 );
